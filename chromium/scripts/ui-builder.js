@@ -100,7 +100,8 @@ export function generateRuleGroupList() {
  */
 export function createRuleGroupElement(group) {
 
-    const groupName = group[0].group.replace(/ /g, "_").replace(/\./g, "-");
+    const groupName = group[0].group;
+    const safeGroupName = getSafeGroupName(groupName);
 
     // Create a column div to contain the accordion
     const columnDiv = document.createElement('div');
@@ -109,7 +110,7 @@ export function createRuleGroupElement(group) {
     // Create accordion to hold rule group information
     const accordion = document.createElement('div');
     accordion.className = 'accordion m-1';
-    accordion.id = `accordion_${groupName}`;
+    accordion.id = `accordion_${safeGroupName}`;
     columnDiv.appendChild(accordion);
 
     const accordionItem = document.createElement('div');
@@ -117,22 +118,72 @@ export function createRuleGroupElement(group) {
     accordion.appendChild(accordionItem);
 
     const accordionHeader = document.createElement('h2');
-    accordionHeader.className = "accordion-header";
+    accordionHeader.className = "accordion-header p-0 m-0 d-flex flex-nowrap align-items-stretch w-100 border-0";
     accordionItem.appendChild(accordionHeader);
 
-    const accordionButton = document.createElement('button');
-    accordionButton.className = "accordion-button collapsed";
-    accordionButton.type = "button";
-    accordionButton.id = `accordion_button_${groupName}`;
-    accordionButton.textContent = group[0].group;
-    accordionButton.setAttribute('data-bs-toggle', 'collapse');
-    accordionButton.setAttribute('data-bs-target', `#collapse_${groupName}`);
-    accordionButton.setAttribute('aria-controls', `collapse_${groupName}`);
-    accordionButton.setAttribute('aria-expanded', 'false');
-    accordionHeader.appendChild(accordionButton);
+    const headerSurface = document.createElement('div');
+    headerSurface.className = "d-flex flex-nowrap align-items-stretch w-100 min-w-0 group-accordion-header-surface";
+    headerSurface.id = `accordion_header_${safeGroupName}`;
+    accordionHeader.appendChild(headerSurface);
 
-    accordionButton.addEventListener('mouseover', () => {
-        accordionButton.classList.add('hovered');
+    const collapseAttrs = () => {
+        const attrs = {
+            'data-bs-toggle': 'collapse',
+            'data-bs-target': `#collapse_${safeGroupName}`,
+            'aria-controls': `collapse_${safeGroupName}`,
+            'aria-expanded': 'false'
+        };
+        return attrs;
+    };
+
+    const titleButton = document.createElement('button');
+    titleButton.type = "button";
+    titleButton.className = "accordion-button collapsed py-2 d-flex align-items-center group-accordion-title-btn flex-grow-1 min-w-0 rounded-0 text-start";
+    Object.entries(collapseAttrs()).forEach(([key, value]) => titleButton.setAttribute(key, value));
+    headerSurface.appendChild(titleButton);
+
+    const groupTitle = document.createElement('span');
+    groupTitle.className = "group-header-title";
+    groupTitle.textContent = groupName;
+    titleButton.appendChild(groupTitle);
+
+    const headerActions = document.createElement('div');
+    headerActions.className = "group-header-actions d-flex align-items-center gap-2 px-2";
+    headerSurface.appendChild(headerActions);
+
+    const chevronButton = document.createElement('button');
+    chevronButton.type = "button";
+    chevronButton.className = "accordion-button collapsed py-2 group-accordion-chevron-btn flex-shrink-0 rounded-0";
+    Object.entries(collapseAttrs()).forEach(([key, value]) => chevronButton.setAttribute(key, value));
+    chevronButton.setAttribute('aria-label', `Toggle group ${groupName}`);
+    const chevronVisuallyHidden = document.createElement('span');
+    chevronVisuallyHidden.className = 'visually-hidden';
+    chevronVisuallyHidden.textContent = 'Toggle';
+    chevronButton.appendChild(chevronVisuallyHidden);
+    headerSurface.appendChild(chevronButton);
+
+    const checkAllWrapper = document.createElement('div');
+    checkAllWrapper.className = "form-check ms-2 my-0 d-flex align-items-center";
+    const checkAllCheckbox = document.createElement('input');
+    checkAllCheckbox.type = "checkbox";
+    checkAllCheckbox.className = `form-check-input m-0 group_${safeGroupName}`;
+    checkAllCheckbox.id = `group_check_all_${safeGroupName}`;
+    checkAllCheckbox.setAttribute('data-bs-toggle', 'tooltip');
+    checkAllCheckbox.setAttribute('title', 'Check All');
+    checkAllCheckbox.checked = group.every((rule) => rule.enabled);
+    checkAllWrapper.appendChild(checkAllCheckbox);
+    headerActions.appendChild(checkAllWrapper);
+
+    const deleteAllButton = createIconButton("far fa-trash-alt");
+    deleteAllButton.className = `btn group-delete-all group_${safeGroupName}`;
+    deleteAllButton.style = "--bs-btn-padding-x: 0.3rem; --bs-btn-padding-y: 0; color: red;";
+    deleteAllButton.id = `group_delete_all_${safeGroupName}`;
+    deleteAllButton.setAttribute('data-bs-toggle', 'tooltip');
+    deleteAllButton.setAttribute('title', 'Delete All');
+    headerActions.appendChild(deleteAllButton);
+
+    headerSurface.addEventListener('mouseover', () => {
+        headerSurface.classList.add('hovered');
         group.forEach((rule) => {
             const ruleListItem = document.getElementById(`list_item_${rule.id}`);
             if (ruleListItem) {
@@ -141,8 +192,8 @@ export function createRuleGroupElement(group) {
         });
     });
 
-    accordionButton.addEventListener('mouseout', () => {
-        accordionButton.classList.remove('hovered');
+    headerSurface.addEventListener('mouseout', () => {
+        headerSurface.classList.remove('hovered');
         group.forEach((rule) => {
             const ruleListItem = document.getElementById(`list_item_${rule.id}`);
             if (ruleListItem) {
@@ -151,17 +202,61 @@ export function createRuleGroupElement(group) {
         });
     });
 
-    accordionButton.addEventListener('click', () => {
-        registerGroupTooltips(groupName);
-    })
+    const registerTooltipsOnGroupOpen = () => {
+        registerGroupTooltips(safeGroupName);
+    };
+    titleButton.addEventListener('click', registerTooltipsOnGroupOpen);
+    chevronButton.addEventListener('click', registerTooltipsOnGroupOpen);
+
+    checkAllCheckbox.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const targetCheckedState = event.target.checked;
+        ruleManagement.toggleRuleGroup(group, targetCheckedState)
+            .then(() => {
+                group.forEach((rule) => {
+                    const card = document.getElementById(`group_item_${rule.id}`);
+                    const listCard = document.getElementById(`list_item_${rule.id}`);
+                    const ruleCheckboxes = document.getElementsByClassName(`checkbox_${rule.id}`);
+                    Object.keys(ruleCheckboxes).forEach((key) => {
+                        ruleCheckboxes[key].checked = targetCheckedState;
+                    });
+                    if (card) {
+                        card.classList.toggle('opacity-50', !targetCheckedState);
+                    }
+                    if (listCard) {
+                        listCard.classList.toggle('opacity-50', !targetCheckedState);
+                    }
+                });
+                checkAllCheckbox.checked = targetCheckedState;
+            })
+            .catch((err) => {
+                console.error(err);
+                checkAllCheckbox.checked = !targetCheckedState;
+                utils.showBottomAlert("Error updating group rules: " + err, "danger");
+            });
+    });
+
+    deleteAllButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        showDeleteGroupConfirmationOverlay(group);
+    });
 
     // Create a collapsable div
 
     const collapse = document.createElement('div');
     collapse.className = "accordion-collapse collapse";
-    collapse.id = `collapse_${groupName}`;
-    collapse.setAttribute('data-bs-parent', `#accordion_${groupName}`);
+    collapse.id = `collapse_${safeGroupName}`;
+    collapse.setAttribute('data-bs-parent', `#accordion_${safeGroupName}`);
     accordionItem.appendChild(collapse);
+
+    const syncGroupHeaderExpandedUi = (expanded) => {
+        [titleButton, chevronButton].forEach((btn) => {
+            btn.classList.toggle('collapsed', !expanded);
+            btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        });
+    };
+    collapse.addEventListener('shown.bs.collapse', () => syncGroupHeaderExpandedUi(true));
+    collapse.addEventListener('hidden.bs.collapse', () => syncGroupHeaderExpandedUi(false));
 
     const collapseBody = document.createElement('div');
     collapseBody.className = 'accordion-body p-2';
@@ -257,7 +352,7 @@ export function createRuleElement(rule, type) {
     card.id = `${type}_${rule.id}`;
 
     if (rule.group) {
-        var groupName = rule.group.replace(/ /g, "_").replace(/\./g, "-");
+        var groupName = getSafeGroupName(rule.group);
     }
 
     // add event listeners that highlight the other instance of the rule too when hovered
@@ -275,8 +370,10 @@ export function createRuleElement(rule, type) {
             const otherCard = document.getElementById(`${otherCardType}_${rule.id}`);
             if (otherCard) {
                 otherCard.classList.add('hovered');
-                const groupAccordion = document.getElementById(`accordion_button_${groupName}`);
-                groupAccordion.classList.add('hovered');
+                const groupAccordion = document.getElementById(`accordion_header_${groupName}`);
+                if (groupAccordion) {
+                    groupAccordion.classList.add('hovered');
+                }
             }
         }
     });
@@ -287,8 +384,10 @@ export function createRuleElement(rule, type) {
             const otherCard = document.getElementById(`${otherCardType}_${rule.id}`);
             if (otherCard) {
                 otherCard.classList.remove('hovered');
-                const groupAccordion = document.getElementById(`accordion_button_${groupName}`);
-                groupAccordion.classList.remove('hovered');
+                const groupAccordion = document.getElementById(`accordion_header_${groupName}`);
+                if (groupAccordion) {
+                    groupAccordion.classList.remove('hovered');
+                }
             }
         }
     });
@@ -415,6 +514,83 @@ export function createIconButton(iconClass) {
 
     button.appendChild(icon);
     return button;
+}
+
+/**
+ * Synchronizes the "Check All" checkbox state for a specific group.
+ * 
+ * @param {string} groupName The group name whose "Check All" checkbox should be updated
+ */
+export function syncGroupCheckAllState(groupName) {
+    if (!groupName) {
+        return;
+    }
+
+    utils.getStoredRuleList()
+        .then((ruleList) => {
+            const groupRules = ruleList.filter((rule) => rule.group === groupName);
+            if (!groupRules.length) {
+                return;
+            }
+            const safeGroupName = getSafeGroupName(groupName);
+            const checkAllCheckbox = document.getElementById(`group_check_all_${safeGroupName}`);
+            if (checkAllCheckbox) {
+                checkAllCheckbox.checked = groupRules.every((rule) => rule.enabled);
+            }
+        });
+}
+
+/**
+ * Shows the "Delete Group" overlay and wires confirmation actions.
+ * 
+ * @param {chrome.declarativeNetRequest.Rule[]} groupRules The rules belonging to the selected group
+ */
+export function showDeleteGroupConfirmationOverlay(groupRules) {
+    if (!groupRules || !groupRules.length) {
+        return;
+    }
+
+    const overlayContainer = document.getElementById('deleteGroupOverlayContainer');
+    const groupNameField = document.getElementById('deleteGroupName');
+    const confirmationInput = document.getElementById('deleteGroupConfirmationInput');
+    const confirmButton = document.getElementById('confirmDeleteGroupButton');
+    const cancelButton = document.getElementById('cancelDeleteGroupButton');
+
+    groupNameField.textContent = groupRules[0].group;
+    confirmationInput.value = "";
+
+    confirmationInput.oninput = () => {
+        confirmationInput.value = confirmationInput.value.toUpperCase();
+    };
+    cancelButton.onclick = () => {
+        hideDeleteGroupConfirmationOverlay();
+    };
+
+    confirmButton.onclick = () => {
+        ruleManagement.processDeleteRuleGroup(groupRules, confirmationInput.value)
+            .then((deleted) => {
+                if (!deleted) {
+                    utils.showBottomAlert('Delete cancelled. Type "YES" to confirm.', "warning");
+                    return;
+                }
+                hideDeleteGroupConfirmationOverlay();
+            });
+    };
+
+    overlayContainer.style.display = 'flex';
+    confirmationInput.focus();
+}
+
+/**
+ * Hides the "Delete Group" confirmation overlay.
+ */
+export function hideDeleteGroupConfirmationOverlay() {
+    const overlayContainer = document.getElementById('deleteGroupOverlayContainer');
+    overlayContainer.style.display = 'none';
+}
+
+function getSafeGroupName(groupName) {
+    return groupName.replace(/ /g, "_").replace(/\./g, "-");
 }
 
 // Global Whitelist management 

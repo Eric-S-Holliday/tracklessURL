@@ -170,6 +170,19 @@
             </form>
         </div>
     </div>
+    <div id="deleteGroupOverlayContainer">
+        <div id="deleteGroupOverlay" class="p-3 rounded-3 border border-3 border-dark">
+            <h2 class="text-center">Delete Group</h2>
+            <p class="mb-2">Type <strong>YES</strong> to delete this group and all of its parameters:</p>
+            <p class="mb-3"><strong id="deleteGroupName"></strong></p>
+            <label for="deleteGroupConfirmationInput" class="form-label">Confirmation</label>
+            <input type="text" class="form-control mb-3" id="deleteGroupConfirmationInput" placeholder="Type YES">
+            <div class="d-flex justify-content-end gap-2">
+                <button id="cancelDeleteGroupButton" type="button" class="btn btn-secondary">Cancel</button>
+                <button id="confirmDeleteGroupButton" type="button" class="btn btn-danger">Delete Group</button>
+            </div>
+        </div>
+    </div>
     <div id="bottomAlertContainer" class="fixed-bottom" style="margin-left: auto; margin-right: auto;"></div>
 
     <div id="whitelistOverlayContainer">

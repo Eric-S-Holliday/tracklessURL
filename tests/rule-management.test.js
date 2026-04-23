@@ -2,15 +2,24 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   addRuleToBrowserDynamicRuleList,
   addRuleToLocalStorage,
-  deleteRule
+  deleteRule,
+  processDeleteRuleGroup
 } from "../chromium/scripts/rule-management.js";
 import * as utils from "../chromium/scripts/utils.js";
+import * as uiBuilder from "../chromium/scripts/ui-builder.js";
 
 vi.mock("../chromium/scripts/utils.js", () => ({
   getStoredRuleList: vi.fn(),
   showBottomAlert: vi.fn(),
   checkForDuplicateRule: vi.fn(),
   getDynamicRules: vi.fn()
+}));
+
+vi.mock("../chromium/scripts/ui-builder.js", () => ({
+  refreshRuleLists: vi.fn(),
+  refreshGlobalWhitelistRuleList: vi.fn(),
+  hideEditOverlay: vi.fn(),
+  hideWhitelistOverlay: vi.fn()
 }));
 
 describe("rule-management", () => {
@@ -93,5 +102,41 @@ describe("rule-management", () => {
     expect(saved).toHaveLength(1);
     expect(saved[0].id).toBe("1");
     expect(chrome.declarativeNetRequest.updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [2] });
+  });
+
+  it("does not delete a rule group unless confirmation is exactly YES", async () => {
+    const rules = [
+      { id: "1", group: "G1", enabled: true, action: {}, condition: {} },
+      { id: "2", group: "G1", enabled: false, action: {}, condition: {} },
+      { id: "3", group: "Other", enabled: true, action: {}, condition: {} }
+    ];
+    utils.getStoredRuleList.mockResolvedValue(structuredClone(rules));
+
+    const deleted = await processDeleteRuleGroup(rules.filter((rule) => rule.group === "G1"), "yes");
+
+    expect(deleted).toBe(false);
+    expect(chrome.storage.local.set).not.toHaveBeenCalled();
+    expect(chrome.declarativeNetRequest.updateDynamicRules).not.toHaveBeenCalled();
+    expect(uiBuilder.refreshRuleLists).not.toHaveBeenCalled();
+  });
+
+  it("deletes a group and all of its parameters when confirmation is YES", async () => {
+    const rules = [
+      { id: "1", group: "G1", enabled: true, action: {}, condition: {} },
+      { id: "2", group: "G1", enabled: false, action: {}, condition: {} },
+      { id: "3", group: "G1", enabled: true, action: {}, condition: {} },
+      { id: "4", group: "Other", enabled: true, action: {}, condition: {} }
+    ];
+    utils.getStoredRuleList.mockResolvedValue(structuredClone(rules));
+
+    const deleted = await processDeleteRuleGroup(rules.filter((rule) => rule.group === "G1"), "YES");
+
+    expect(deleted).toBe(true);
+    expect(chrome.storage.local.set).toHaveBeenCalledTimes(1);
+    const saved = chrome.storage.local.set.mock.calls[0][0].rules;
+    expect(saved).toHaveLength(1);
+    expect(saved[0].id).toBe("4");
+    expect(chrome.declarativeNetRequest.updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [1, 3] });
+    expect(uiBuilder.refreshRuleLists).toHaveBeenCalledTimes(1);
   });
 });

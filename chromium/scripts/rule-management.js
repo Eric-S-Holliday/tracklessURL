@@ -221,6 +221,9 @@ export function toggleRule(event) {
                                 }
                                 groupItem.classList.remove('opacity-50');
                                 Object.keys(checkboxes).forEach((key) => checkboxes[key].checked = true);
+                                if (rule.group) {
+                                    uiBuilder.syncGroupCheckAllState(rule.group);
+                                }
                             })
                             .catch((err) => {
                                 console.error(err);
@@ -238,6 +241,9 @@ export function toggleRule(event) {
                                 }
                                 groupItem.classList.add('opacity-50');
                                 Object.keys(checkboxes).forEach((key) => checkboxes[key].checked = false);
+                                if (rule.group) {
+                                    uiBuilder.syncGroupCheckAllState(rule.group);
+                                }
                             })
                             .catch((err) => {
                                 console.error("Error removing rule from dynamic rule list:", err);
@@ -256,6 +262,67 @@ export function toggleRule(event) {
                 }
             });
         });
+}
+
+/**
+ * Enables or disables every rule inside a group.
+ * 
+ * @param {chrome.declarativeNetRequest.Rule[]} groupRules The rules in the group to modify
+ * @param {boolean} enabled Whether to enable or disable all rules in the group
+ * @returns {Promise<void>} A void promise
+ */
+export function toggleRuleGroup(groupRules, enabled) {
+    return new Promise((resolve, reject) => {
+        if (!groupRules || !groupRules.length) {
+            resolve();
+            return;
+        }
+
+        const removeRuleIds = [];
+        const addRules = [];
+
+        utils.getStoredRuleList()
+            .then((storedRules) => {
+                const groupRuleIds = groupRules.map((rule) => String(rule.id));
+                storedRules.forEach((rule) => {
+                    if (groupRuleIds.includes(String(rule.id))) {
+                        rule.enabled = enabled;
+                        if (enabled) {
+                            const ruleCopy = JSON.parse(JSON.stringify(rule));
+                            delete ruleCopy.enabled;
+                            if (ruleCopy.group) {
+                                delete ruleCopy.group;
+                            }
+                            addRules.push(ruleCopy);
+                        } else {
+                            removeRuleIds.push(parseInt(rule.id));
+                        }
+                    }
+                });
+
+                chrome.storage.local.set({ rules: storedRules })
+                    .then(() => {
+                        const dynamicRuleUpdate = {};
+                        if (enabled) {
+                            dynamicRuleUpdate.addRules = addRules;
+                        } else {
+                            dynamicRuleUpdate.removeRuleIds = removeRuleIds.filter((ruleId) => !isNaN(ruleId));
+                        }
+
+                        if ((!dynamicRuleUpdate.addRules || !dynamicRuleUpdate.addRules.length) &&
+                            (!dynamicRuleUpdate.removeRuleIds || !dynamicRuleUpdate.removeRuleIds.length)) {
+                            resolve();
+                            return;
+                        }
+
+                        chrome.declarativeNetRequest.updateDynamicRules(dynamicRuleUpdate)
+                            .then(() => resolve())
+                            .catch((err) => reject(new Error("Error updating browser dynamic rules list: " + err)));
+                    })
+                    .catch((err) => reject(new Error("Error saving rule list in local storage: " + err)));
+            })
+            .catch((err) => reject(new Error("Error fetching rules from browser storage: " + err)));
+    });
 }
 
 /**
@@ -451,6 +518,87 @@ export function showDeleteRuleConfirmationModal(rule) {
                 utils.showBottomAlert("Error deleting rule: " + err, "danger");
             })
     }
+}
+
+/**
+ * Deletes all rules under a single group from local storage and browser dynamic rules.
+ *
+ * @param {string} groupName The group name whose rules should be deleted
+ * @returns {Promise<void>} A void promise
+ */
+export function deleteRuleGroup(groupName) {
+    return new Promise((resolve, reject) => {
+        if (!groupName || !groupName.length) {
+            reject(new Error("Group name is required"));
+            return;
+        }
+
+        utils.getStoredRuleList()
+            .then((ruleList) => {
+                const remainingRules = [];
+                const removeRuleIds = [];
+
+                ruleList.forEach((rule) => {
+                    if (rule.group === groupName) {
+                        if (rule.enabled) {
+                            const parsedId = parseInt(rule.id);
+                            if (!isNaN(parsedId)) {
+                                removeRuleIds.push(parsedId);
+                            }
+                        }
+                    } else {
+                        remainingRules.push(rule);
+                    }
+                });
+
+                chrome.storage.local.set({ rules: remainingRules })
+                    .then(() => {
+                        if (!removeRuleIds.length) {
+                            resolve();
+                            return;
+                        }
+                        chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: removeRuleIds })
+                            .then(() => resolve())
+                            .catch((err) => reject(new Error("Error deleting group from browser dynamic rules list: " + err)));
+                    })
+                    .catch((err) => reject(new Error("Error saving rule list in local storage: " + err)));
+            })
+            .catch((err) => reject(new Error("Error fetching rules from browser storage: " + err)));
+    });
+}
+
+/**
+ * Confirms and deletes an entire group of rules when confirmation text is exactly "YES".
+ * 
+ * @param {chrome.declarativeNetRequest.Rule[]} groupRules The full list of rules in a group
+ * @param {string} confirmationText The user-provided confirmation text
+ * @returns {Promise<boolean>} True if deleted, false otherwise
+ */
+export function processDeleteRuleGroup(groupRules, confirmationText) {
+    return new Promise((resolve) => {
+        if (!groupRules || !groupRules.length) {
+            resolve(false);
+            return;
+        }
+
+        if (confirmationText !== "YES") {
+            resolve(false);
+            return;
+        }
+
+        const groupName = groupRules[0].group;
+        deleteRuleGroup(groupName)
+            .then(() => {
+                uiBuilder.refreshRuleLists();
+                utils.showBottomAlert(`Group "${groupName}" deleted successfully!`, "success");
+                resolve(true);
+            })
+            .catch((err) => {
+                console.error(err);
+                utils.showBottomAlert("Error deleting group: " + err, "danger");
+                resolve(false);
+            });
+    });
 }
 
 /**

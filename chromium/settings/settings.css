@@ -29,11 +29,88 @@
     backdrop-filter: blur(4px);
 }
 
+#deleteGroupOverlayContainer {
+    display: none;
+    position: fixed;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    z-index: 5000;
+    backdrop-filter: blur(4px);
+}
+
+#deleteGroupOverlay {
+    min-width: 30%;
+    min-height: 20%;
+    background-color: rgb(239, 239, 239);
+    margin: auto;
+}
+
 #globalWhitelistOverlay {
     min-width: 30%;
     min-height: 20%;
     background-color: rgb(239, 239, 239);
     margin: auto;
+}
+
+.group-header-actions {
+    position: relative;
+    z-index: 2;
+    flex-shrink: 0;
+    margin-left: 0;
+    margin-right: 0;
+    font-size: 0.9rem;
+    background-color: var(--bs-accordion-btn-bg);
+    border-left: 1px solid var(--bs-accordion-border-color, var(--bs-border-color));
+}
+
+.group-header-actions .form-check-input {
+    margin-top: 0;
+    margin-left: 0;
+    width: 1em;
+    height: 1em;
+}
+
+.group-header-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.group-accordion-title-btn .group-header-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-right: 0;
+    text-align: start;
+}
+
+.group-accordion-title-btn.accordion-button::after {
+    display: none !important;
+}
+
+.group-accordion-chevron-btn.accordion-button {
+    flex: 0 0 auto;
+    width: 2.5rem;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+    justify-content: center;
+}
+
+.group-accordion-chevron-btn.accordion-button::after {
+    margin-left: 0;
+}
+
+.group-accordion-header-surface.hovered .accordion-button,
+.group-accordion-header-surface.hovered .group-header-actions {
+    background-color: rgb(229, 255, 229);
+    transition: background-color 0.2s ease-in;
+}
+
+.group-accordion-header-surface:has(.accordion-button:not(.collapsed)) .group-header-actions {
+    background-color: var(--bs-accordion-active-bg);
 }
 
 #addRuleForm {
