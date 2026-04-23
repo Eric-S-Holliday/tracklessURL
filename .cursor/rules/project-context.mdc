@@ -1,0 +1,13 @@
+---
+description: Core project context for tracklessURL extension work
+alwaysApply: true
+---
+
+# tracklessURL Project Context
+
+- This repository is a source-first browser extension project; load unpacked from `chromium/` for Chrome testing.
+- Prioritize Chromium behavior unless Firefox parity is explicitly requested.
+- Keep parameter storage canonical/decoded in rules (`removeParams` stores names like `$3p`, not `%243p`).
+- Build DNR regex matching from raw URL form (`encodeURIComponent(parameter)` before regex escaping).
+- Avoid adding parameters to default rule lists unless the user explicitly asks for that change.
+- For behavior fixes, preserve existing UX unless the user requests UI changes.

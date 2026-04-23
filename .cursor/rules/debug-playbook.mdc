@@ -1,0 +1,14 @@
+---
+description: Quick debug workflow for unpacked Chrome extension issues
+alwaysApply: true
+---
+
+# Unpacked Extension Debug Playbook
+
+- For “rule exists but not applied” bugs, verify in service worker console:
+  - `chrome.declarativeNetRequest.getDynamicRules()`
+  - inspect `condition.regexFilter` and `removeParams`
+- If rule schema/generation changed, remind to delete and re-add existing user rules so stored data reflects new shape.
+- Treat this project as local-only unless code shows explicit network dependency.
+- Distinguish parser truth (`URLSearchParams`) from raw URL string truth (regex on request URL).
+- When uncertain, create a minimal reproduction URL and test candidate regex patterns against it.

@@ -1,0 +1,13 @@
+---
+description: Test-first policy for behavior bugs and regressions
+globs: "tests/**/*.test.js"
+alwaysApply: false
+---
+
+# Test-First Regressions
+
+- For behavior bugs, add or extend a failing regression test before implementing the fix.
+- After implementing the fix, run `npm test` and report pass/fail clearly.
+- Prefer assertions on observable behavior (generated rule JSON, matching outcomes), not implementation details.
+- Add at least one edge-case assertion when bug root cause involves encoding/escaping/parsing differences.
+- Keep tests deterministic with mocks for browser APIs (`chrome.*`) where runtime APIs are unavailable.

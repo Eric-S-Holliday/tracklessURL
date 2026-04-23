@@ -1,0 +1,15 @@
+---
+description: Rule-generation safety for extension JavaScript files
+globs: "{chromium,firefox}/**/*.js"
+alwaysApply: false
+---
+
+# Extension JS Safety
+
+- When changing rule generation, keep canonical storage and matching concerns separate:
+  - canonical rule data in objects/storage
+  - raw URL-safe matching in `regexFilter`
+- Escape regex literals through a helper function instead of inline duplicated replace logic.
+- If changing shared rule construction in one browser target, mirror equivalent behavior in the other target unless instructed otherwise.
+- Do not assume encoded and decoded query key representations are interchangeable in raw URL regex matching.
+- Prefer focused changes near `CustomRule`/`rule-management` instead of broad rewrites.
