@@ -33,3 +33,17 @@ Some of the tracking parameters tracklessURL removes include:
 - Bronto: _bta_tid, _bta_c
 
 And many more!
+
+## Development testing setup
+
+This extension can be loaded directly from source (no build step required).
+
+To run automated tests before making changes:
+
+1. Install Node.js (if not already installed).
+2. Install test dependencies:
+   - `npm install`
+3. Run the test suite:
+   - `npm test`
+
+The current tests cover baseline rule generation and validation behavior so future enhancements can be made with a safety net.
