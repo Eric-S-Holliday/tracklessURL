@@ -1,6 +1,10 @@
 import { getStoredRuleList } from "../scripts/utils.js";
 import ruleTemplate from "../resources/rule-template.js";
 
+function escapeRegexLiteral(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export class CustomRule {
 
     domainArr = [];
@@ -34,7 +38,8 @@ export class CustomRule {
             const nextAvailableId = await this.getNextAvailableId();
             template.id = nextAvailableId;
             template.action.redirect.transform.queryTransform.removeParams = [this.parameter];
-            template.condition.regexFilter = `[?&]${this.parameter}=*`;
+            const encodedParam = encodeURIComponent(this.parameter);
+            template.condition.regexFilter = `[?&]${escapeRegexLiteral(encodedParam)}=*`;
             if (this.domainFilterList !== '') {
                 if (this.domainFilterListType === 'Whitelist' && this.domainArr.length > 0) {
                     template.condition.excludedRequestDomains = this.domainArr;
@@ -87,7 +92,7 @@ export class CustomRule {
      * @returns {boolean} Whether the URL parameter is valid
      */
     static isValidParameter(param) {
-        const paramRegex = /^[a-zA-Z0-9-_]{1,}$/;
+        const paramRegex = /^[a-zA-Z0-9\-_$]{1,}$/;
         return paramRegex.test(param);
     }
 

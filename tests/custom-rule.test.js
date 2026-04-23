@@ -43,4 +43,19 @@ describe("CustomRule", () => {
     expect(json.condition.requestDomains).toEqual(["facebook.com"]);
     expect(json.condition.excludedRequestDomains).toBeUndefined();
   });
+
+  it("supports dollar-prefixed parameters from URL decoding", async () => {
+    utils.getStoredRuleList.mockResolvedValue([]);
+    const rule = new CustomRule("$3p", "dice.com", "Blacklist", "dice.com");
+
+    const json = await rule.getRuleJson();
+
+    expect(CustomRule.isValidParameter("$3p")).toBe(true);
+    expect(json.action.redirect.transform.queryTransform.removeParams).toEqual(["$3p"]);
+    expect(json.condition.regexFilter).toBe("[?&]%243p=*");
+
+    const matcher = new RegExp(json.condition.regexFilter);
+    expect(matcher.test("https://www.dice.com/job-detail/1234?%243p=e_iterable")).toBe(true);
+    expect(matcher.test("https://www.dice.com/job-detail/1234?$3p=e_iterable")).toBe(false);
+  });
 });
