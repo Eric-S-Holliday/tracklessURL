@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   addRuleToBrowserDynamicRuleList,
   addRuleToLocalStorage,
+  clearDynamicRulesForExtension,
   deleteRule,
-  processDeleteRuleGroup
+  processDeleteRuleGroup,
+  reapplyDynamicRulesFromLocalStorage
 } from "../chromium/scripts/rule-management.js";
 import * as utils from "../chromium/scripts/utils.js";
 import * as uiBuilder from "../chromium/scripts/ui-builder.js";
@@ -138,5 +140,48 @@ describe("rule-management", () => {
     expect(saved[0].id).toBe("4");
     expect(chrome.declarativeNetRequest.updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [1, 3] });
     expect(uiBuilder.refreshRuleLists).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears all extension-owned dynamic rules", async () => {
+    utils.getDynamicRules.mockResolvedValue([{ id: 11 }, { id: "12" }]);
+
+    const result = await clearDynamicRulesForExtension();
+
+    expect(chrome.declarativeNetRequest.updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [11, 12] });
+    expect(result).toEqual({ removed: 2 });
+  });
+
+  it("reapplies enabled stored rules to dynamic rules after clearing existing ones", async () => {
+    utils.getDynamicRules.mockResolvedValue([{ id: 7 }, { id: 8 }]);
+    utils.getStoredRuleList.mockResolvedValue([
+      {
+        id: 1,
+        enabled: true,
+        group: "GroupA",
+        action: { type: "redirect" },
+        condition: { regexFilter: "[?&]utm_source=*" }
+      },
+      {
+        id: 2,
+        enabled: false,
+        action: { type: "redirect" },
+        condition: { regexFilter: "[?&]utm_medium=*" }
+      }
+    ]);
+
+    const result = await reapplyDynamicRulesFromLocalStorage();
+
+    expect(chrome.declarativeNetRequest.updateDynamicRules).toHaveBeenCalledTimes(2);
+    expect(chrome.declarativeNetRequest.updateDynamicRules.mock.calls[0][0]).toEqual({ removeRuleIds: [7, 8] });
+    expect(chrome.declarativeNetRequest.updateDynamicRules.mock.calls[1][0]).toEqual({
+      addRules: [
+        {
+          id: 1,
+          action: { type: "redirect" },
+          condition: { regexFilter: "[?&]utm_source=*" }
+        }
+      ]
+    });
+    expect(result).toEqual({ removed: 2, added: 1 });
   });
 });

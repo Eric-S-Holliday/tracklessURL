@@ -191,6 +191,83 @@ export function addRuleToBrowserDynamicRuleList(newRuleJson, enabled) {
     })
 }
 
+/**
+ * Removes all dynamic rules currently owned by this extension.
+ *
+ * @returns {Promise<{removed: number}>} Number of removed dynamic rules
+ */
+export function clearDynamicRulesForExtension() {
+    return new Promise((resolve, reject) => {
+        utils.getDynamicRules()
+            .then((dynamicRules) => {
+                const removeRuleIds = dynamicRules
+                    .map((rule) => parseInt(rule.id))
+                    .filter((ruleId) => !isNaN(ruleId));
+
+                if (!removeRuleIds.length) {
+                    resolve({ removed: 0 });
+                    return;
+                }
+
+                chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds })
+                    .then(() => resolve({ removed: removeRuleIds.length }))
+                    .catch((err) => reject(new Error("Error clearing browser dynamic rules list: " + err)));
+            })
+            .catch((err) => reject(new Error("Error retrieving dynamic rule list: " + err)));
+    });
+}
+
+/**
+ * Rebuilds browser dynamic rules from locally-stored rules.
+ * Enabled rules are re-added; disabled rules remain only in local storage.
+ *
+ * @returns {Promise<{removed: number, added: number}>} Number of removed and added rules
+ */
+export function reapplyDynamicRulesFromLocalStorage() {
+    return new Promise((resolve, reject) => {
+        Promise.all([utils.getStoredRuleList(), utils.getDynamicRules()])
+            .then(([storedRules, dynamicRules]) => {
+                const enabledRules = storedRules
+                    .filter((rule) => rule.enabled)
+                    .map((rule) => {
+                        const ruleCopy = JSON.parse(JSON.stringify(rule));
+                        delete ruleCopy.enabled;
+                        if (ruleCopy.group) {
+                            delete ruleCopy.group;
+                        }
+                        return ruleCopy;
+                    });
+
+                const maxRules = chrome.declarativeNetRequest.MAX_NUMBER_OF_DYNAMIC_AND_SESSION_RULES;
+                if (enabledRules.length > maxRules) {
+                    reject(new Error("Enabled rules exceed browser dynamic rule limit"));
+                    return;
+                }
+
+                const removeRuleIds = dynamicRules
+                    .map((rule) => parseInt(rule.id))
+                    .filter((ruleId) => !isNaN(ruleId));
+
+                const removePromise = removeRuleIds.length
+                    ? chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds })
+                    : Promise.resolve();
+
+                removePromise
+                    .then(() => {
+                        if (!enabledRules.length) {
+                            resolve({ removed: removeRuleIds.length, added: 0 });
+                            return;
+                        }
+                        chrome.declarativeNetRequest.updateDynamicRules({ addRules: enabledRules })
+                            .then(() => resolve({ removed: removeRuleIds.length, added: enabledRules.length }))
+                            .catch((err) => reject(new Error("Error reapplying browser dynamic rules list: " + err)));
+                    })
+                    .catch((err) => reject(new Error("Error clearing browser dynamic rules list: " + err)));
+            })
+            .catch((err) => reject(new Error("Error loading local or dynamic rule lists: " + err)));
+    });
+}
+
 // Edit Rule functions
 
 /**

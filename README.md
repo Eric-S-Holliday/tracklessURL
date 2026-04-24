@@ -75,3 +75,19 @@ The current tests cover baseline rule generation and validation behavior so futu
    const imported = JSON.parse(`paste the entire JSON here as one string`);
    chrome.storage.local.set(imported, () => console.log("done"));
    ```
+6. Rebuild dynamic rules from imported local storage rules:
+   ```js
+   await window.tracklessURL.reapplyDynamicRules();
+   ```
+
+### Optional Recovery Console Commands (Modified Extension Settings Page)
+
+Use these if local storage rules and active browser dynamic rules get out of sync:
+
+```js
+// Remove all currently active dynamic rules owned by this extension
+await window.tracklessURL.clearDynamicRules();
+
+// Rebuild active dynamic rules from local storage (enabled rules only)
+await window.tracklessURL.reapplyDynamicRules();
+```

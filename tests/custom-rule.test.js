@@ -3,7 +3,7 @@ import { CustomRule } from "../chromium/resources/CustomRuleClass.js";
 import * as utils from "../chromium/scripts/utils.js";
 
 vi.mock("../chromium/scripts/utils.js", () => ({
-  getStoredRuleList: vi.fn()
+  getStoredRuleList: vi.fn(),
 }));
 
 describe("CustomRule", () => {

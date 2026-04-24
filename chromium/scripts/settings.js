@@ -1,5 +1,11 @@
 import * as formValidation from "./form-validation.js";
-import { handleAddRule, handleEditRule, handleAddGlobalWhitelistRule } from "./rule-management.js";
+import {
+    handleAddRule,
+    handleEditRule,
+    handleAddGlobalWhitelistRule,
+    clearDynamicRulesForExtension,
+    reapplyDynamicRulesFromLocalStorage
+} from "./rule-management.js";
 import * as uiBuilder from "./ui-builder.js"
 
 // Event listeners
@@ -100,4 +106,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
     uiBuilder.generateRuleGroupList();
     uiBuilder.generateGlobalWhitelistRuleList();
+
+    // Console helpers for recovery/debug flows:
+    // window.tracklessURL.clearDynamicRules()
+    // window.tracklessURL.reapplyDynamicRules()
+    window.tracklessURL = window.tracklessURL || {};
+    window.tracklessURL.clearDynamicRules = async function () {
+        const result = await clearDynamicRulesForExtension();
+        console.log("tracklessURL: dynamic rules cleared", result);
+        return result;
+    };
+    window.tracklessURL.reapplyDynamicRules = async function () {
+        const result = await reapplyDynamicRulesFromLocalStorage();
+        console.log("tracklessURL: dynamic rules reapplied", result);
+        return result;
+    };
 })
