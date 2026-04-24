@@ -50,18 +50,18 @@
             <div class="col-lg-3 col-md-4">
                 <label class="form-label">Filter Mode</label>
                 <div class="form-check">
-                    <input class="form-check-input" type="radio" id="whitelistRadio" name="domainFilterType"
-                        value="Whitelist" checked>
-                    <label class="form-check-label" for="whitelistRadio">Whitelist</label>
-                    <i class="far fa-question-circle main_tooltip" data-bs-toggle="tooltip"
-                        title="Remove the parameter on all domains EXCEPT the specified domains. Leave the domain list empty to remove the parameter on all domains."></i>
-                </div>
-                <div class="form-check">
                     <input class="form-check-input" type="radio" id="blacklistRadio" name="domainFilterType"
-                        value="Blacklist">
+                        value="Blacklist" checked>
                     <label class="form-check-label" for="blacklistRadio">Blacklist</label>
                     <i class="far fa-question-circle main_tooltip" data-bs-toggle="tooltip"
                         title="Remove the parameter ONLY on the specified domains. The domain list must include at least one domain."></i>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" id="whitelistRadio" name="domainFilterType"
+                        value="Whitelist">
+                    <label class="form-check-label" for="whitelistRadio">Whitelist</label>
+                    <i class="far fa-question-circle main_tooltip" data-bs-toggle="tooltip"
+                        title="Remove the parameter on all domains EXCEPT the specified domains. Leave the domain list empty to remove the parameter on all domains."></i>
                 </div>
             </div>
             <div class="col">
@@ -154,16 +154,16 @@
                             <label class="form-label">Filter Mode</label>
                             <div class="col text-start">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="radio" id="editWhitelistRadio"
-                                        name="editDomainFilterType" value="Whitelist">
-                                    <label class="form-check-label" for="editWhitelistRadio">Whitelist</label>
+                                    <input class="form-check-input" type="radio" id="editBlacklistRadio"
+                                        name="editDomainFilterType" value="Blacklist">
+                                    <label class="form-check-label" for="editBlacklistRadio">Blacklist</label>
                                 </div>
                             </div>
                             <div class="col text-start">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="radio" id="editBlacklistRadio"
-                                        name="editDomainFilterType" value="Blacklist">
-                                    <label class="form-check-label" for="editBlacklistRadio">Blacklist</label>
+                                    <input class="form-check-input" type="radio" id="editWhitelistRadio"
+                                        name="editDomainFilterType" value="Whitelist">
+                                    <label class="form-check-label" for="editWhitelistRadio">Whitelist</label>
                                 </div>
                             </div>
                         </div>
