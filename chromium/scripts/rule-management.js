@@ -45,7 +45,7 @@ export function processAddRule(newRule, defaultRule = false) {
                 if (rule) {
                     // duplicate found
                     if (!defaultRule) {
-                        console.error(`Rule with parameter "${newRule.parameter}" already exists!`);
+                        console.log(`Rule with parameter "${newRule.parameter}" already exists!`);
                         utils.showBottomAlert(`Rule with parameter "${newRule.parameter}" already exists!`, "warning");
                     }
                     resolve();
@@ -751,7 +751,7 @@ export function processAddGlobalWhitelistRule(newRule) {
         .then(async (rule) => {
             if (rule) {
                 // duplicate found
-                console.error(`Rule with domain "${newRule.domain}" already exists!`);
+                console.log(`Rule with domain "${newRule.domain}" already exists!`);
                 utils.showBottomAlert(`Rule with domain "${newRule.domain}" already exists!`, "warning");
                 return;
             } else {
