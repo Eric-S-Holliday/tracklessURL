@@ -58,4 +58,12 @@ describe("CustomRule", () => {
     expect(matcher.test("https://www.dice.com/job-detail/1234?%243p=e_iterable")).toBe(true);
     expect(matcher.test("https://www.dice.com/job-detail/1234?$3p=e_iterable")).toBe(false);
   });
+
+  it("keeps per-rule timing mode for storage metadata", () => {
+    const preRequestRule = new CustomRule("utm_source", "", "Whitelist", "");
+    const afterLoadRule = new CustomRule("utm_source", "", "Whitelist", "", "afterLoad");
+
+    expect(preRequestRule.timingMode).toBe("preRequest");
+    expect(afterLoadRule.timingMode).toBe("afterLoad");
+  });
 });

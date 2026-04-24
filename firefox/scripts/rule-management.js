@@ -20,8 +20,9 @@ export function handleAddRule(event) {
     const group = formData.get('group');
     const domainFilterType = formData.get('domainFilterType');
     const domainFilterList = formData.get('domainFilterList');
+    const timingMode = formData.get('timingMode') || "preRequest";
 
-    let newRule = new CustomRule(parameter, group, domainFilterType, domainFilterList)
+    let newRule = new CustomRule(parameter, group, domainFilterType, domainFilterList, timingMode)
 
     processAddRule(newRule);
 }
@@ -51,7 +52,7 @@ export function processAddRule(newRule, defaultRule = false) {
                 } else {
                     const newRuleJson = await newRule.getRuleJson();
                     // console.log("processAddRule(): Rule JSON to be added: ", newRuleJson);
-                    addRule(newRuleJson, true, newRule.group)
+                    addRule(newRuleJson, true, newRule.group, newRule.timingMode)
                         .then(() => {
                             // console.log("processAddRule(): Rule added successfully!");
                             if (!defaultRule) {
@@ -91,12 +92,12 @@ export function processAddRule(newRule, defaultRule = false) {
  * 
  * @returns {Promise} A void promise
  */
-export function addRule(newRuleJson, enabled, group) {
+export function addRule(newRuleJson, enabled, group, timingMode = "preRequest") {
     return new Promise((resolve, reject) => {
 
         addRuleToBrowserDynamicRuleList(newRuleJson, enabled)
             .then(() => {
-                addRuleToLocalStorage(newRuleJson, enabled, group)
+                addRuleToLocalStorage(newRuleJson, enabled, group, timingMode)
                     .then(() => {
                         // console.log("addRule(): Rule added to dynamic rule list and local storage successfully!");
                         resolve();
@@ -121,7 +122,7 @@ export function addRule(newRuleJson, enabled, group) {
  * @param {string} group The name of the group to add the rule to, "" if no group
  * @returns {Promise} A void promise
  */
-export function addRuleToLocalStorage(newRuleJson, enabled, group) {
+export function addRuleToLocalStorage(newRuleJson, enabled, group, timingMode = "preRequest") {
     return new Promise((resolve, reject) => {
         utils.getStoredRuleList().then((result) => {
             const rules = result;
@@ -129,6 +130,7 @@ export function addRuleToLocalStorage(newRuleJson, enabled, group) {
             if (group !== "") {
                 newRuleJson.group = group;
             }
+            newRuleJson.timingMode = timingMode === "afterLoad" ? "afterLoad" : "preRequest";
             rules.push(newRuleJson)
 
             browser.storage.local.set({ rules: rules })
@@ -159,13 +161,16 @@ export function addRuleToBrowserDynamicRuleList(newRuleJson, enabled) {
         const newRuleCopy = JSON.parse(JSON.stringify(newRuleJson));
 
         // Immediately return if the rule is disabled (when a user edits a disabled rule)
-        if (!enabled) {
+        if (!enabled || newRuleJson.timingMode === "afterLoad") {
             // console.log("Skipping adding rule to browser dynamic rule list, rule is disabled");
             resolve();
         } else {
             delete newRuleCopy.enabled;
             if (newRuleCopy.group) {
                 delete newRuleCopy.group;
+            }
+            if (newRuleCopy.timingMode) {
+                delete newRuleCopy.timingMode;
             }
 
             utils.getDynamicRules()
@@ -324,8 +329,9 @@ export function handleEditRule(event) {
     const group = formData.get('editGroup');
     const domainFilterType = formData.get('editDomainFilterType');
     const domainFilterList = formData.get('editDomainFilterList');
+    const timingMode = formData.get('editTimingMode') || "preRequest";
 
-    let editedRule = new CustomRule(parameter, group, domainFilterType, domainFilterList);
+    let editedRule = new CustomRule(parameter, group, domainFilterType, domainFilterList, timingMode);
 
     processEditRule(editedRule);
 }
@@ -352,7 +358,7 @@ export function processEditRule(editedRule) {
                 deleteRule(rule.id)
                     .then(async () => {
                         const editedRuleJson = await editedRule.getRuleJson();
-                        addRule(editedRuleJson, enabled, group)
+                        addRule(editedRuleJson, enabled, group, editedRule.timingMode)
                             .then(() => {
                                 // console.log("handleEditRule(): Rule edited successfully!");
                                 utils.showBottomAlert("Rule edited successfully!", "success");

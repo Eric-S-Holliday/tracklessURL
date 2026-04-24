@@ -14,12 +14,14 @@ export class CustomRule {
      * @param {string} group The group the rule belongs to. "" if no group
      * @param {string} domainFilterListType The type of filter. Either "Blacklist" or "Whitelist"
      * @param {string} domainFilterList A comma-separated list of domains to either blacklist or whitelist
+     * @param {"preRequest"|"afterLoad"} timingMode When removal should occur
      */
-    constructor(parameter, group, domainFilterListType, domainFilterList) {
+    constructor(parameter, group, domainFilterListType, domainFilterList, timingMode = "preRequest") {
         this.parameter = parameter;
         this.group = group;
         this.domainFilterListType = domainFilterListType;
         this.domainFilterList = domainFilterList;
+        this.timingMode = timingMode === "afterLoad" ? "afterLoad" : "preRequest";
         if (this.domainFilterList !== '') {
             this.domainArr = domainFilterList.split(',').map(domain => domain.trim());
         } else {

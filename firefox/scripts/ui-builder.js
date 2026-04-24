@@ -19,6 +19,7 @@ export function showEditOverlay(rule) {
     const editDomainFilterList = document.getElementById('editDomainFilterList');
     const editWhitelistRadio = document.getElementById('editWhitelistRadio');
     const editBlacklistRadio = document.getElementById('editBlacklistRadio');
+    const editTimingMode = document.getElementById('editTimingMode');
 
     editParameter.value = rule.action.redirect.transform.queryTransform.removeParams[0];
     editRuleId.value = rule.id;
@@ -28,6 +29,7 @@ export function showEditOverlay(rule) {
     } else {
         editGroup.value = "";
     }
+    editTimingMode.value = rule.timingMode === "afterLoad" ? "afterLoad" : "preRequest";
 
     // set the checkboxes
 
@@ -100,7 +102,12 @@ export function generateRuleGroupList() {
  */
 export function createRuleGroupElement(group) {
 
-    const groupName = group[0].group.replace(/ /g, "_").replace(/\./g, "-");
+    const sortedGroupRules = [...group].sort((a, b) => {
+        const paramA = a.action.redirect.transform.queryTransform.removeParams[0];
+        const paramB = b.action.redirect.transform.queryTransform.removeParams[0];
+        return paramA.localeCompare(paramB, undefined, { sensitivity: 'base' });
+    });
+    const groupName = sortedGroupRules[0].group.replace(/ /g, "_").replace(/\./g, "-");
 
     // Create a column div to contain the accordion
     const columnDiv = document.createElement('div');
@@ -124,7 +131,7 @@ export function createRuleGroupElement(group) {
     accordionButton.className = "accordion-button collapsed";
     accordionButton.type = "button";
     accordionButton.id = `accordion_button_${groupName}`;
-    accordionButton.textContent = group[0].group;
+    accordionButton.textContent = sortedGroupRules[0].group;
     accordionButton.setAttribute('data-bs-toggle', 'collapse');
     accordionButton.setAttribute('data-bs-target', `#collapse_${groupName}`);
     accordionButton.setAttribute('aria-controls', `collapse_${groupName}`);
@@ -133,7 +140,7 @@ export function createRuleGroupElement(group) {
 
     accordionButton.addEventListener('mouseover', () => {
         accordionButton.classList.add('hovered');
-        group.forEach((rule) => {
+        sortedGroupRules.forEach((rule) => {
             const ruleListItem = document.getElementById(`list_item_${rule.id}`);
             if (ruleListItem) {
                 ruleListItem.classList.add('hovered');
@@ -143,7 +150,7 @@ export function createRuleGroupElement(group) {
 
     accordionButton.addEventListener('mouseout', () => {
         accordionButton.classList.remove('hovered');
-        group.forEach((rule) => {
+        sortedGroupRules.forEach((rule) => {
             const ruleListItem = document.getElementById(`list_item_${rule.id}`);
             if (ruleListItem) {
                 ruleListItem.classList.remove('hovered');
@@ -171,7 +178,7 @@ export function createRuleGroupElement(group) {
     list.className = "list-group";
     collapseBody.appendChild(list);
 
-    group.forEach((rule) => {
+    sortedGroupRules.forEach((rule) => {
         const ruleListItem = createRuleElement(rule, "group_item");
         list.appendChild(ruleListItem);
     });
@@ -324,6 +331,15 @@ export function createRuleElement(rule, type) {
         groupIcon.setAttribute('data-bs-toggle', 'tooltip');
         groupIcon.setAttribute('title', `Group: ${rule.group}`);
         flexDiv.appendChild(groupIcon);
+    }
+
+    if (type === 'list_item' && rule.timingMode === "afterLoad") {
+        const timingIcon = document.createElement('i');
+        timingIcon.className = "far fa-clock me-2 list_item";
+        timingIcon.style = "color: #6c757d;";
+        timingIcon.setAttribute('data-bs-toggle', 'tooltip');
+        timingIcon.setAttribute('title', "After-load cleanup: initial request untouched");
+        flexDiv.appendChild(timingIcon);
     }
 
     const listIcon = document.createElement('i');

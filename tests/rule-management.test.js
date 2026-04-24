@@ -60,6 +60,14 @@ describe("rule-management", () => {
     expect(chrome.declarativeNetRequest.updateDynamicRules).not.toHaveBeenCalled();
   });
 
+  it("skips browser dynamic add for after-load timing mode", async () => {
+    const inputRule = { id: 10, timingMode: "afterLoad", enabled: true };
+
+    await addRuleToBrowserDynamicRuleList(inputRule, true);
+
+    expect(chrome.declarativeNetRequest.updateDynamicRules).not.toHaveBeenCalled();
+  });
+
   it("adds enabled rule to browser dynamic list and strips local-only fields", async () => {
     utils.getDynamicRules.mockResolvedValue([{ id: 1 }, { id: 2 }]);
     const inputRule = {
@@ -89,6 +97,26 @@ describe("rule-management", () => {
     const saved = chrome.storage.local.set.mock.calls[0][0].rules;
     expect(saved).toHaveLength(2);
     expect(saved[1]).toMatchObject({ id: 2, enabled: true, group: "GroupA" });
+  });
+
+  it("defaults timingMode to preRequest when omitted", async () => {
+    utils.getStoredRuleList.mockResolvedValue([]);
+    const rule = { id: 2, action: {}, condition: {} };
+
+    await addRuleToLocalStorage(rule, true, "");
+
+    const saved = chrome.storage.local.set.mock.calls[0][0].rules;
+    expect(saved[0].timingMode).toBe("preRequest");
+  });
+
+  it("persists afterLoad timingMode when explicitly provided", async () => {
+    utils.getStoredRuleList.mockResolvedValue([]);
+    const rule = { id: 3, action: {}, condition: {} };
+
+    await addRuleToLocalStorage(rule, true, "", "afterLoad");
+
+    const saved = chrome.storage.local.set.mock.calls[0][0].rules;
+    expect(saved[0].timingMode).toBe("afterLoad");
   });
 
   it("deletes a stored rule and removes it from dynamic rules", async () => {

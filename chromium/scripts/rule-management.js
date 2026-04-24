@@ -20,8 +20,9 @@ export function handleAddRule(event) {
     const group = formData.get('group');
     const domainFilterType = formData.get('domainFilterType');
     const domainFilterList = formData.get('domainFilterList');
+    const timingMode = formData.get('timingMode') || "preRequest";
 
-    let newRule = new CustomRule(parameter, group, domainFilterType, domainFilterList)
+    let newRule = new CustomRule(parameter, group, domainFilterType, domainFilterList, timingMode)
 
     processAddRule(newRule);
 }
@@ -51,7 +52,7 @@ export function processAddRule(newRule, defaultRule = false) {
                 } else {
                     const newRuleJson = await newRule.getRuleJson();
                     // console.log("processAddRule(): Rule JSON to be added: ", newRuleJson);
-                    addRule(newRuleJson, true, newRule.group)
+                    addRule(newRuleJson, true, newRule.group, newRule.timingMode)
                         .then(() => {
                             // console.log("processAddRule(): Rule added successfully!");
                             if (!defaultRule) {
@@ -91,12 +92,12 @@ export function processAddRule(newRule, defaultRule = false) {
  * 
  * @returns {Promise} A void promise
  */
-export function addRule(newRuleJson, enabled, group) {
+export function addRule(newRuleJson, enabled, group, timingMode = "preRequest") {
     return new Promise((resolve, reject) => {
 
         addRuleToBrowserDynamicRuleList(newRuleJson, enabled)
             .then(() => {
-                addRuleToLocalStorage(newRuleJson, enabled, group)
+                addRuleToLocalStorage(newRuleJson, enabled, group, timingMode)
                     .then(() => {
                         // console.log("addRule(): Rule added to dynamic rule list and local storage successfully!");
                         resolve();
@@ -121,7 +122,7 @@ export function addRule(newRuleJson, enabled, group) {
  * @param {string} group The name of the group to add the rule to, "" if no group
  * @returns {Promise} A void promise
  */
-export function addRuleToLocalStorage(newRuleJson, enabled, group) {
+export function addRuleToLocalStorage(newRuleJson, enabled, group, timingMode = "preRequest") {
     return new Promise((resolve, reject) => {
         utils.getStoredRuleList().then((result) => {
             const rules = result;
@@ -129,6 +130,7 @@ export function addRuleToLocalStorage(newRuleJson, enabled, group) {
             if (group !== "") {
                 newRuleJson.group = group;
             }
+            newRuleJson.timingMode = timingMode === "afterLoad" ? "afterLoad" : "preRequest";
             rules.push(newRuleJson)
 
             chrome.storage.local.set({ rules: rules })
@@ -159,13 +161,16 @@ export function addRuleToBrowserDynamicRuleList(newRuleJson, enabled) {
         const newRuleCopy = JSON.parse(JSON.stringify(newRuleJson));
 
         // Immediately return if the rule is disabled (when a user edits a disabled rule)
-        if (!enabled) {
+        if (!enabled || newRuleJson.timingMode === "afterLoad") {
             // console.log("Skipping adding rule to browser dynamic rule list, rule is disabled");
             resolve();
         } else {
             delete newRuleCopy.enabled;
             if (newRuleCopy.group) {
                 delete newRuleCopy.group;
+            }
+            if (newRuleCopy.timingMode) {
+                delete newRuleCopy.timingMode;
             }
 
             utils.getDynamicRules()
@@ -228,12 +233,15 @@ export function reapplyDynamicRulesFromLocalStorage() {
         Promise.all([utils.getStoredRuleList(), utils.getDynamicRules()])
             .then(([storedRules, dynamicRules]) => {
                 const enabledRules = storedRules
-                    .filter((rule) => rule.enabled)
+                    .filter((rule) => rule.enabled && rule.timingMode !== "afterLoad")
                     .map((rule) => {
                         const ruleCopy = JSON.parse(JSON.stringify(rule));
                         delete ruleCopy.enabled;
                         if (ruleCopy.group) {
                             delete ruleCopy.group;
+                        }
+                        if (ruleCopy.timingMode) {
+                            delete ruleCopy.timingMode;
                         }
                         return ruleCopy;
                     });
@@ -280,23 +288,24 @@ export function reapplyDynamicRulesFromLocalStorage() {
 export function toggleRule(event) {
     const checkbox = event.target;
     const checkboxes = document.getElementsByClassName(`checkbox_${checkbox.id}`); // select both checkboxes (in the group section and the all rules section)
-    const parameter = checkbox.value;
     const containerCard = document.getElementById(`list_item_${checkbox.id}`);
     const groupItem = document.getElementById(`group_item_${checkbox.id}`);
     utils.getStoredRuleList()
         .then((ruleList) => {
             ruleList.forEach((rule) => {
-                if (rule.group !== "GlobalWhitelist" && rule.action.redirect.transform.queryTransform.removeParams[0] === parameter) {
+                if (rule.group !== "GlobalWhitelist" && String(rule.id) === String(checkbox.id)) {
                     if (checkbox.checked) {
                         rule.enabled = true;
-                        // console.log("toggleRule(): Enabling rule with parameter:", parameter);
+                        // console.log("toggleRule(): Enabling rule with ID:", checkbox.id);
                         addRuleToBrowserDynamicRuleList(rule, true)
                             .then(() => {
                                 // console.log("toggleRule(): Rule added to dynamic rule list successfully");
                                 if (containerCard) {
                                     containerCard.classList.remove('opacity-50');
                                 }
-                                groupItem.classList.remove('opacity-50');
+                                if (groupItem) {
+                                    groupItem.classList.remove('opacity-50');
+                                }
                                 Object.keys(checkboxes).forEach((key) => checkboxes[key].checked = true);
                                 if (rule.group) {
                                     uiBuilder.syncGroupCheckAllState(rule.group);
@@ -309,14 +318,16 @@ export function toggleRule(event) {
                             });
                     } else {
                         rule.enabled = false;
-                        // console.log("toggleRule(): Disabling rule with parameter:", parameter);
+                        // console.log("toggleRule(): Disabling rule with ID:", checkbox.id);
                         chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: [rule.id] })
                             .then(() => {
                                 // console.log("toggleRule(): Rule removed from dynamic rule list successfully!");
                                 if (containerCard) {
                                     containerCard.classList.add('opacity-50');
                                 }
-                                groupItem.classList.add('opacity-50');
+                                if (groupItem) {
+                                    groupItem.classList.add('opacity-50');
+                                }
                                 Object.keys(checkboxes).forEach((key) => checkboxes[key].checked = false);
                                 if (rule.group) {
                                     uiBuilder.syncGroupCheckAllState(rule.group);
@@ -371,7 +382,12 @@ export function toggleRuleGroup(groupRules, enabled) {
                             if (ruleCopy.group) {
                                 delete ruleCopy.group;
                             }
-                            addRules.push(ruleCopy);
+                            if (rule.timingMode !== "afterLoad") {
+                                if (ruleCopy.timingMode) {
+                                    delete ruleCopy.timingMode;
+                                }
+                                addRules.push(ruleCopy);
+                            }
                         } else if (!enabled && wasEnabled) {
                             removeRuleIds.push(parseInt(rule.id));
                         }
@@ -469,8 +485,9 @@ export function handleEditRule(event) {
     const group = formData.get('editGroup');
     const domainFilterType = formData.get('editDomainFilterType');
     const domainFilterList = formData.get('editDomainFilterList');
+    const timingMode = formData.get('editTimingMode') || "preRequest";
 
-    let editedRule = new CustomRule(parameter, group, domainFilterType, domainFilterList);
+    let editedRule = new CustomRule(parameter, group, domainFilterType, domainFilterList, timingMode);
 
     processEditRule(editedRule);
 }
@@ -497,7 +514,7 @@ export function processEditRule(editedRule) {
                 deleteRule(rule.id)
                     .then(async () => {
                         const editedRuleJson = await editedRule.getRuleJson();
-                        addRule(editedRuleJson, enabled, group)
+                        addRule(editedRuleJson, enabled, group, editedRule.timingMode)
                             .then(() => {
                                 // console.log("handleEditRule(): Rule edited successfully!");
                                 utils.showBottomAlert("Rule edited successfully!", "success");

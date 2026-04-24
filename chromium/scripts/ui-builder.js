@@ -3,6 +3,8 @@ import * as utils from "./utils.js";
 import { CustomRule } from "../resources/CustomRuleClass.js";
 import { setEditDomainListFieldValidity } from "./form-validation.js";
 
+let expandedGroupNames = new Set();
+
 // Edit Overlay management
 
 /**
@@ -19,6 +21,7 @@ export function showEditOverlay(rule) {
     const editDomainFilterList = document.getElementById('editDomainFilterList');
     const editWhitelistRadio = document.getElementById('editWhitelistRadio');
     const editBlacklistRadio = document.getElementById('editBlacklistRadio');
+    const editTimingMode = document.getElementById('editTimingMode');
 
     editParameter.value = rule.action.redirect.transform.queryTransform.removeParams[0];
     editRuleId.value = rule.id;
@@ -28,6 +31,7 @@ export function showEditOverlay(rule) {
     } else {
         editGroup.value = "";
     }
+    editTimingMode.value = rule.timingMode === "afterLoad" ? "afterLoad" : "preRequest";
 
     // set the checkboxes
 
@@ -100,7 +104,13 @@ export function generateRuleGroupList() {
  */
 export function createRuleGroupElement(group) {
 
-    const groupName = group[0].group;
+    const sortedGroupRules = [...group].sort((a, b) => {
+        const paramA = a.action.redirect.transform.queryTransform.removeParams[0];
+        const paramB = b.action.redirect.transform.queryTransform.removeParams[0];
+        return paramA.localeCompare(paramB, undefined, { sensitivity: 'base' });
+    });
+
+    const groupName = sortedGroupRules[0].group;
     const safeGroupName = getSafeGroupName(groupName);
 
     // Create a column div to contain the accordion
@@ -170,7 +180,7 @@ export function createRuleGroupElement(group) {
     checkAllCheckbox.id = `group_check_all_${safeGroupName}`;
     checkAllCheckbox.setAttribute('data-bs-toggle', 'tooltip');
     checkAllCheckbox.setAttribute('title', 'Check All');
-    checkAllCheckbox.checked = group.every((rule) => rule.enabled);
+    checkAllCheckbox.checked = sortedGroupRules.every((rule) => rule.enabled);
     checkAllWrapper.appendChild(checkAllCheckbox);
     headerActions.appendChild(checkAllWrapper);
 
@@ -184,7 +194,7 @@ export function createRuleGroupElement(group) {
 
     headerSurface.addEventListener('mouseover', () => {
         headerSurface.classList.add('hovered');
-        group.forEach((rule) => {
+        sortedGroupRules.forEach((rule) => {
             const ruleListItem = document.getElementById(`list_item_${rule.id}`);
             if (ruleListItem) {
                 ruleListItem.classList.add('hovered');
@@ -194,7 +204,7 @@ export function createRuleGroupElement(group) {
 
     headerSurface.addEventListener('mouseout', () => {
         headerSurface.classList.remove('hovered');
-        group.forEach((rule) => {
+        sortedGroupRules.forEach((rule) => {
             const ruleListItem = document.getElementById(`list_item_${rule.id}`);
             if (ruleListItem) {
                 ruleListItem.classList.remove('hovered');
@@ -211,9 +221,9 @@ export function createRuleGroupElement(group) {
     checkAllCheckbox.addEventListener('click', (event) => {
         event.stopPropagation();
         const targetCheckedState = event.target.checked;
-        ruleManagement.toggleRuleGroup(group, targetCheckedState)
+        ruleManagement.toggleRuleGroup(sortedGroupRules, targetCheckedState)
             .then(() => {
-                group.forEach((rule) => {
+                sortedGroupRules.forEach((rule) => {
                     const card = document.getElementById(`group_item_${rule.id}`);
                     const listCard = document.getElementById(`list_item_${rule.id}`);
                     const ruleCheckboxes = document.getElementsByClassName(`checkbox_${rule.id}`);
@@ -238,7 +248,7 @@ export function createRuleGroupElement(group) {
 
     deleteAllButton.addEventListener('click', (event) => {
         event.stopPropagation();
-        showDeleteGroupConfirmationOverlay(group);
+        showDeleteGroupConfirmationOverlay(sortedGroupRules);
     });
 
     // Create a collapsable div
@@ -247,6 +257,9 @@ export function createRuleGroupElement(group) {
     collapse.className = "accordion-collapse collapse";
     collapse.id = `collapse_${safeGroupName}`;
     collapse.setAttribute('data-bs-parent', `#accordion_${safeGroupName}`);
+    if (expandedGroupNames.has(safeGroupName)) {
+        collapse.classList.add('show');
+    }
     accordionItem.appendChild(collapse);
 
     const syncGroupHeaderExpandedUi = (expanded) => {
@@ -255,6 +268,7 @@ export function createRuleGroupElement(group) {
             btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
         });
     };
+    syncGroupHeaderExpandedUi(collapse.classList.contains('show'));
     collapse.addEventListener('shown.bs.collapse', () => syncGroupHeaderExpandedUi(true));
     collapse.addEventListener('hidden.bs.collapse', () => syncGroupHeaderExpandedUi(false));
 
@@ -266,7 +280,7 @@ export function createRuleGroupElement(group) {
     list.className = "list-group";
     collapseBody.appendChild(list);
 
-    group.forEach((rule) => {
+    sortedGroupRules.forEach((rule) => {
         const ruleListItem = createRuleElement(rule, "group_item");
         list.appendChild(ruleListItem);
     });
@@ -314,6 +328,10 @@ export function generateRuleList() {
  * Refreshes the "Rule Groups", "All Rules", and "Global Whitelist Rules" sections of the settings page
  */
 export function refreshRuleLists() {
+    expandedGroupNames = new Set(
+        Array.from(document.querySelectorAll('#ruleGroupListContainer .accordion-collapse.show'))
+            .map((el) => el.id.replace(/^collapse_/, ""))
+    );
     const ruleListContainer = document.getElementById('ruleListContainer');
     ruleListContainer.innerHTML = "";
     const ruleGroupListContainer = document.getElementById('ruleGroupListContainer');
@@ -423,6 +441,23 @@ export function createRuleElement(rule, type) {
         groupIcon.setAttribute('data-bs-toggle', 'tooltip');
         groupIcon.setAttribute('title', `Group: ${rule.group}`);
         flexDiv.appendChild(groupIcon);
+    }
+
+    if (type === 'list_item' && rule.timingMode === "afterLoad") {
+        const timingIcon = document.createElement('i');
+        timingIcon.className = "far fa-clock me-2 list_item";
+        timingIcon.style = "color: #6c757d;";
+        timingIcon.setAttribute('data-bs-toggle', 'tooltip');
+        timingIcon.setAttribute('title', "After-load cleanup: initial request untouched");
+        flexDiv.appendChild(timingIcon);
+    }
+    if (type === 'group_item' && rule.timingMode === "afterLoad") {
+        const timingIcon = document.createElement('i');
+        timingIcon.className = `far fa-clock me-2 group_${groupName}`;
+        timingIcon.style = "color: #6c757d;";
+        timingIcon.setAttribute('data-bs-toggle', 'tooltip');
+        timingIcon.setAttribute('title', "After-load cleanup: initial request untouched");
+        flexDiv.appendChild(timingIcon);
     }
 
     const listIcon = document.createElement('i');

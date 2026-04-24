@@ -35,6 +35,15 @@
                     title='The group you want to add this parameter to. Groups could be specific types of trackers, a domain specific trackers are on, etc. Valid characters include a-z, A-Z, 0-9, " ", "-", ".", and "_"'></i>
                 <input type="text" class="form-control" id="group" name="group" placeholder="Ex: Facebook">
             </div>
+            <div class="col">
+                <label for="timingMode" class="form-label">Apply Timing</label>
+                <i class="far fa-question-circle main_tooltip" data-bs-toggle="tooltip"
+                    title='Before page load removes parameters before navigation. After page load keeps the initial request intact, then removes matching parameters from the URL shown in the tab.'></i>
+                <select class="form-select" id="timingMode" name="timingMode">
+                    <option value="preRequest" selected>Before page load</option>
+                    <option value="afterLoad">After page load</option>
+                </select>
+            </div>
         </div>
         <!-- <h3>Filter Mode</h3> -->
         <div class="row">
@@ -158,6 +167,13 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                    <div class="col-4">
+                        <label for="editTimingMode" class="form-label">Apply Timing</label>
+                        <select class="form-select" id="editTimingMode" name="editTimingMode">
+                            <option value="preRequest">Before page load</option>
+                            <option value="afterLoad">After page load</option>
+                        </select>
                     </div>
                 </div>
                 <br>
