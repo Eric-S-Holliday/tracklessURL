@@ -363,15 +363,16 @@ export function toggleRuleGroup(groupRules, enabled) {
                 const groupRuleIds = groupRules.map((rule) => String(rule.id));
                 storedRules.forEach((rule) => {
                     if (groupRuleIds.includes(String(rule.id))) {
+                        const wasEnabled = Boolean(rule.enabled);
                         rule.enabled = enabled;
-                        if (enabled) {
+                        if (enabled && !wasEnabled) {
                             const ruleCopy = JSON.parse(JSON.stringify(rule));
                             delete ruleCopy.enabled;
                             if (ruleCopy.group) {
                                 delete ruleCopy.group;
                             }
                             addRules.push(ruleCopy);
-                        } else {
+                        } else if (!enabled && wasEnabled) {
                             removeRuleIds.push(parseInt(rule.id));
                         }
                     }

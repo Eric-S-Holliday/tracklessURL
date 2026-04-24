@@ -5,7 +5,8 @@ import {
   clearDynamicRulesForExtension,
   deleteRule,
   processDeleteRuleGroup,
-  reapplyDynamicRulesFromLocalStorage
+  reapplyDynamicRulesFromLocalStorage,
+  toggleRuleGroup
 } from "../chromium/scripts/rule-management.js";
 import * as utils from "../chromium/scripts/utils.js";
 import * as uiBuilder from "../chromium/scripts/ui-builder.js";
@@ -140,6 +141,53 @@ describe("rule-management", () => {
     expect(saved[0].id).toBe("4");
     expect(chrome.declarativeNetRequest.updateDynamicRules).toHaveBeenCalledWith({ removeRuleIds: [1, 3] });
     expect(uiBuilder.refreshRuleLists).toHaveBeenCalledTimes(1);
+  });
+
+  it("enables only currently disabled rules when checking an entire group", async () => {
+    const storedRules = [
+      {
+        id: "1",
+        group: "G1",
+        enabled: true,
+        action: { type: "redirect" },
+        condition: { regexFilter: "[?&]utm_source=*" }
+      },
+      {
+        id: "2",
+        group: "G1",
+        enabled: false,
+        action: { type: "redirect" },
+        condition: { regexFilter: "[?&]utm_medium=*" }
+      },
+      {
+        id: "3",
+        group: "Other",
+        enabled: false,
+        action: { type: "redirect" },
+        condition: { regexFilter: "[?&]foo=*" }
+      }
+    ];
+    utils.getStoredRuleList.mockResolvedValue(structuredClone(storedRules));
+
+    await toggleRuleGroup(
+      storedRules.filter((rule) => rule.group === "G1"),
+      true
+    );
+
+    expect(chrome.declarativeNetRequest.updateDynamicRules).toHaveBeenCalledTimes(1);
+    expect(chrome.declarativeNetRequest.updateDynamicRules).toHaveBeenCalledWith({
+      addRules: [
+        {
+          id: "2",
+          action: { type: "redirect" },
+          condition: { regexFilter: "[?&]utm_medium=*" }
+        }
+      ]
+    });
+
+    const saved = chrome.storage.local.set.mock.calls[0][0].rules;
+    const savedGroup = saved.filter((rule) => rule.group === "G1");
+    expect(savedGroup.every((rule) => rule.enabled)).toBe(true);
   });
 
   it("clears all extension-owned dynamic rules", async () => {
