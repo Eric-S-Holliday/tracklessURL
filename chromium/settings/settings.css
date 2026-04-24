@@ -85,6 +85,10 @@
     min-width: 0;
     margin-right: 0;
     text-align: start;
+    display: block;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .group-accordion-title-btn.accordion-button::after {
@@ -124,6 +128,22 @@
 #ruleListContainer {
     width: 70%;
     margin: auto;
+}
+
+#ruleListContainer .card-body {
+    flex-wrap: nowrap;
+}
+
+#ruleListContainer .card-text {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+#ruleListContainer .text-end.col {
+    flex: 0 0 auto;
+    width: auto;
 }
 
 #globalWhitelistRuleListContainer {
