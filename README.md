@@ -1,4 +1,5 @@
 # tracklessURL
+
 tracklessURL is an open-source privacy-focused extension that automatically removes tracking parameters from URLs before they're visited. Using the Declarative Net Request API, tracklessURL is able to modify URLs without ever requiring intrusive permissions. This means the extension is unable to view or store what websites you visit.
 
 Features:
@@ -29,8 +30,8 @@ Some of the tracking parameters tracklessURL removes include:
 - Marketo: mkt_tok
 - LinkedIn: trackingId, refId, trk, etc.
 - Mailchimp: mc_cid
-- HubSpot: hsa_cam, hsa_src, _hsenc, etc.
-- Bronto: _bta_tid, _bta_c
+- HubSpot: hsa_cam, hsa_src, \_hsenc, etc.
+- Bronto: \_bta_tid, \_bta_c
 
 And many more!
 
@@ -47,3 +48,30 @@ To run automated tests before making changes:
    - `npm test`
 
 The current tests cover baseline rule generation and validation behavior so future enhancements can be made with a safety net.
+
+## How to Export/Import Data from Original tracklessURL Extension
+
+### Export from Original Extension (Only tested with Chrome. Firefox steps may be different)
+
+1. Open Browser's Extensions Page.
+2. Turn on Developer mode. (Not sure this is required)
+3. Turn Off the Modified Extension and Turn on the Original Extension.
+4. Open the Original tracklessURL Settings page.
+5. Open Browser DevTools.
+6. In the DevTools Console, run:
+   ```js
+   chrome.storage.local.get("rules", (obj) => console.log(JSON.stringify(obj, null, 2)));
+   ```
+7. Copy the printed JSON from the console.
+
+### Import into this Modified Extension
+
+1. Return to Browser's Extensions Page.
+2. Turn Off the Original Extension and Turn on the Modified Extension.
+3. Open the Modified tracklessURL Settings page.
+4. Open Browser DevTools.
+5. In the DevTools Console, run the following updating string with exported JSON from above:
+   ```js
+   const imported = JSON.parse(`paste the entire JSON here as one string`);
+   chrome.storage.local.set(imported, () => console.log("done"));
+   ```
